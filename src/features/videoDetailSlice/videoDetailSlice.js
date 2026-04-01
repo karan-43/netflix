@@ -20,7 +20,7 @@ const videoDetailSlice = createSlice({
         videoDetail: {
             loading: false,
             error: null,
-            data: []
+            data: null
         }
     },
     reducers: {},

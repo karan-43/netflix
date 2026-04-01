@@ -4,6 +4,8 @@ import { BrowserRouter, Route, Routes } from 'react-router-dom'
 import AppLayout from './components/layouts/AppLayout'
 import Home from './pages/home/Home'
 import VideoDetail from './pages/videoDetail/VideoDetail'
+import Register from './components/register/Register'
+import { ToastContainer } from 'react-toastify';
 
 function App() {
 
@@ -16,6 +18,7 @@ function App() {
             <Route path='/video/:id' element={<VideoDetail />} />
           </Route>
         </Routes>
+        <ToastContainer />
       </BrowserRouter>
     </>
   )

@@ -35,11 +35,13 @@ const Home = () => {
             <section className='bg-[#020711] py-6 w-full relative'>
                 <div className="view flex flex-col gap-y-10">
                     {
+
                         homeVideoData?.sections?.map((items, idx) => (
                             <div key={idx}>
                                 <VideoCard items={items} />
                             </div>
                         ))
+
                     }
                 </div>
             </section>

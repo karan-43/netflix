@@ -37,6 +37,7 @@ export default function CategoryTabs({ categoriesItem }) {
                 />
             </label>
             {categoriesItem?.map((item, idx) => (
+                console.log(item, "categories"),
                 <label
                     key={idx}
                     htmlFor={`category-${idx}`}

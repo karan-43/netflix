@@ -3,11 +3,18 @@ import { useEffect, useState } from "react";
 import Register from "../register/Register";
 import { useDispatch, useSelector } from "react-redux";
 import { profileData } from "../../features/authSlice/authSlice";
+import Login from "../login/Login";
+import { removeToken } from "../../features/authSlice/authSlice";
+import { clearWatchlist } from "../../features/watchlistSlice/watchlistSlice";
 
 const Header = () => {
     const dispatch = useDispatch();
-    const { token, user } = useSelector((state) => state.auth);
+    const { token, user, loading } = useSelector((state) => state.auth);
     const [modalOpen, setModalOpen] = useState("");
+    const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+    const { watchlist } = useSelector((state) => state.watchlist);
+
+    console.log(watchlist, "watchlist header")
     console.log(token, user, "Dgdfgdfgdfg")
     useEffect(() => {
         if (token && user?.data && !user?.data?.userName) {
@@ -20,6 +27,13 @@ const Header = () => {
             dispatch(profileData());
         }
     }, [token]);
+
+
+    const handleLogout = () => {
+        dispatch(removeToken());
+        setIsDropdownOpen(false);
+        dispatch(clearWatchlist());
+    }
     return (
 
         <>
@@ -32,16 +46,67 @@ const Header = () => {
                         <h1 className="text-white text-xl font-semibold">Streamify</h1>
                     </div>
                     <div className="flex items-center gap-4">
+                        <div className="relative">
+                            {
+                                (!token || !user?.data?.userName) ?
+                                    (
+                                        <div className="relative">
+                                            <button type="button" onClick={() => setIsDropdownOpen(!isDropdownOpen)} className="w-10 h-10 rounded-xl border border-gray-600 flex items-center justify-center cursor-pointer hover:bg-gray-800 transition">
+                                                <User className="text-white w-5 h-5" />
+                                            </button>
+                                        </div>
+                                    )
+                                    : (
+                                        <button type="button" onClick={() => setIsDropdownOpen(!isDropdownOpen)} className={`text-white bg-gradient-to-r font-semibold from-blue-500 to-purple-500 w-10 h-10 rounded-xl flex items-center justify-center cursor-pointer hover:bg-gray-800 transition ${(!user?.data?.userName || loading) ? "animate-pulse" : ""}`}>
+                                            {user?.data?.userName ? user?.data?.userName?.charAt(0)?.toUpperCase() : ""}
+                                        </button>
+                                    )
+                            }
 
-                        {
-                            token && user?.data && !user?.data?.userName ?
-                                (< button type="button" onClick={() => setModalOpen("step1")} className="w-10 h-10 rounded-xl border border-gray-600 flex items-center justify-center cursor-pointer hover:bg-gray-800 transition">
-                                    <User className="text-white w-5 h-5" />
-                                </button>)
-                                : (
-                                    <button type="button" className="text-white bg-gradient-to-r font-semibold from-blue-500 to-purple-500 w-10 h-10 rounded-xl flex items-center justify-center cursor-pointer hover:bg-gray-800 transition">{user?.data?.userName[0].toUpperCase()}</button>
-                                )
-                        }
+                            {isDropdownOpen && (
+                                <div className="absolute right-0 mt-2 w-32 bg-[#020b1c] rounded-xl shadow-lg border border-gray-600 overflow-hidden z-50">
+                                    {
+                                        !token ? (
+                                            <div className="py-1">
+                                                <button
+                                                    onClick={() => {
+                                                        setModalOpen("login");
+                                                        setIsDropdownOpen(false);
+                                                    }}
+                                                    className="w-full text-left px-4 py-2 text-white hover:bg-gray-800 transition text-sm font-medium"
+                                                >
+                                                    Login
+                                                </button>
+                                                <button
+                                                    onClick={() => {
+                                                        setModalOpen("step1");
+                                                        setIsDropdownOpen(false);
+                                                    }}
+                                                    className="w-full text-left px-4 py-2 text-white hover:bg-gray-800 transition text-sm font-medium"
+                                                >
+                                                    Register
+                                                </button>
+                                            </div>
+                                        ) : (
+                                            <div className="py-1">
+                                                <button
+
+                                                    className="w-full text-left px-4 py-2 text-white hover:bg-gray-800 transition text-sm font-medium"
+                                                >
+                                                    Profile
+                                                </button>
+                                                <button
+                                                    onClick={handleLogout}
+                                                    className="w-full text-left px-4 py-2 text-white hover:bg-gray-800 transition text-sm font-medium"
+                                                >
+                                                    Logout
+                                                </button>
+                                            </div>
+                                        )
+                                    }
+                                </div>
+                            )}
+                        </div>
 
                         {/* Search Icon */}
                         <div className="w-10 h-10 rounded-xl border border-gray-600 flex items-center justify-center cursor-pointer hover:bg-gray-800 transition">
@@ -61,6 +126,8 @@ const Header = () => {
             </div >
 
             {modalOpen === "step1" && <Register setModalOpen={setModalOpen} modalOpen={modalOpen} />
+            }
+            {modalOpen === "login" && <Login setModalOpen={setModalOpen} modalOpen={modalOpen} />
             }
         </>
     )

@@ -6,6 +6,7 @@ import { registerData } from "../../features/registerSlice/registerSlice.js"
 import { useDispatch, useSelector } from "react-redux";
 import Otp from "../otp/Otp.jsx";
 import BasicDetails from "../basicDetails/BasicDetails.jsx";
+import { toast } from "react-toastify";
 
 export default function Register({ modalOpen, setModalOpen }) {
   const [showPassword, setShowPassword] = useState(false);
@@ -58,10 +59,11 @@ export default function Register({ modalOpen, setModalOpen }) {
         const res = await dispatch(registerData(values)).unwrap();
         if (res) {
           setStep(2);
-          console.log(res, "resgistervgsvdsg");
+          toast.success(res?.message);
         }
       } catch (err) {
         console.error("Registration failed:", err);
+        toast.error(err?.message);
       }
     },
   });
@@ -82,7 +84,7 @@ export default function Register({ modalOpen, setModalOpen }) {
 
       {step === 1 && <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50">
         <div className="w-full max-w-md bg-[#020b1c] text-white rounded-2xl p-6 relative">
-          <button onClick={() => setModalOpen("")} className="cursor-pointer absolute top-4 right-4 text-gray-400">
+          <button onClick={() => { setModalOpen(""), setIsRegister(false) }} className="cursor-pointer absolute top-4 right-4 text-gray-400">
             <X className="size-5 text-white" />
           </button>
 
@@ -205,7 +207,7 @@ export default function Register({ modalOpen, setModalOpen }) {
           {/* Footer */}
           <p className="text-center text-gray-400 text-sm mt-4">
             Already have an account?{" "}
-            <span className="text-blue-500 cursor-pointer">Log in</span>
+            <button onClick={() => setModalOpen("login")} className="text-blue-500 cursor-pointer">Log in</button>
           </p>
 
         </div>

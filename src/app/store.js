@@ -5,6 +5,8 @@ import registerReducer from "../features/registerSlice/registerSlice.js"
 import otpReducer from "../features/otpSlice/otpSlice.js"
 import authReducer from "../features/authSlice/authSlice.js"
 import basicDetailsReducer from "../features/basicDetailsSlice/basicDetailsSlice.js"
+import loginReducer from "../features/loginSlice/loginSlice.js"
+import watchlistReducer from "../features/watchlistSlice/watchlistSlice.js"
 
 export const store = configureStore({
     reducer: {
@@ -13,6 +15,8 @@ export const store = configureStore({
         register: registerReducer,
         otp: otpReducer,
         auth: authReducer,
-        basicDetails: basicDetailsReducer
+        basicDetails: basicDetailsReducer,
+        login: loginReducer,
+        watchlist: watchlistReducer
     },
 });

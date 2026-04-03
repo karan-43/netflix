@@ -6,5 +6,9 @@ export const API_ROUTES = {
     videoDetail: "/video",
     otp: "/user/verify-otp",
     profile: "/user/profile",
-    basicDetails: "/user/enter-basic-details"
+    basicDetails: "/user/enter-basic-details",
+    login: "/user/login",
+    watchlist: "/watchlist",
+    addVideoWatchlist: "/watchlist/add-video",
+    removeVideoWatchlist: "/watchlist/remove-video"
 };

@@ -7,6 +7,8 @@ import authReducer from "../features/authSlice/authSlice.js"
 import basicDetailsReducer from "../features/basicDetailsSlice/basicDetailsSlice.js"
 import loginReducer from "../features/loginSlice/loginSlice.js"
 import watchlistReducer from "../features/watchlistSlice/watchlistSlice.js"
+import continueWatchingReducer from "../features/continueWatchingSlice/continueWatchingSlice.js"
+import favouriteReducer from "../features/favouriteSlice/favouriteSlice.js"
 
 export const store = configureStore({
     reducer: {
@@ -17,6 +19,8 @@ export const store = configureStore({
         auth: authReducer,
         basicDetails: basicDetailsReducer,
         login: loginReducer,
-        watchlist: watchlistReducer
+        watchlist: watchlistReducer,
+        continueWatching: continueWatchingReducer,
+        favourite: favouriteReducer
     },
 });

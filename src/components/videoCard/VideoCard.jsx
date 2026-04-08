@@ -12,7 +12,6 @@ const VideoCard = ({ items }) => {
 
     if (homeVideos?.loading) return <VideoCardSkeleton />
 
-    console.log(homeVideos?.loading, "homeVideos?.loading")
 
     return (
         <>

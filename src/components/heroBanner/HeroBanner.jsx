@@ -9,7 +9,9 @@ import { useDispatch, useSelector } from "react-redux";
 import { useState } from "react";
 import WatchList from "../watchList/watchList";
 import { watchListModalOpen } from "../../features/watchlistSlice/watchlistSlice";
-
+import { Link } from "react-router-dom";
+import { addFavouriteList, getFavouriteList } from "../../features/favouriteSlice/favouriteSlice";
+import { toast } from "react-toastify";
 const HeroBanner = ({ bannerData }) => {
 
     const { watchListModalState } = useSelector((state) => state.watchlist);
@@ -26,6 +28,25 @@ const HeroBanner = ({ bannerData }) => {
         setVideoId(id);
         dispatch(watchListModalOpen(true));
     }
+
+
+    const handleFavClick = async (id) => {
+        try {
+            const res = await dispatch(addFavouriteList({ videoId: id })).unwrap()
+            if (res) {
+                dispatch(getFavouriteList({}));
+                toast.success(res?.message)
+            }
+            console.log(res, "ressss")
+
+
+        } catch (err) {
+            console.error("Add failed:", err);
+            alert(err?.message)
+        }
+
+    }
+
 
     return (
         <>
@@ -66,9 +87,9 @@ const HeroBanner = ({ bannerData }) => {
                                                 <Plus size={16} />
                                                 Watchlist
                                             </button>
-                                            <button className="ml-auto">
+                                            <Link onClick={() => handleFavClick(item?.videoId?._id)} className="ml-auto cursor-pointer">
                                                 <Heart className="text-gray-300" />
-                                            </button>
+                                            </Link>
 
                                         </div>
                                     </div>

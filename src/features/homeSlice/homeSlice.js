@@ -5,13 +5,16 @@ import { BASE_URL, API_ROUTES } from "../../constant/apiConstant"
 export const getVideo = createAsyncThunk(
     "homeVideo/getVideo",
     async (id = null, { rejectWithValue }) => {
-        console.log(id, "id")
         try {
             const url = id
                 ? `${BASE_URL}${API_ROUTES.home}?categoryId=${id}`
                 : `${BASE_URL}${API_ROUTES.home}`;
 
-            const res = await axios.get(url);
+            const res = await axios.get(url, {
+                headers: {
+                    Authorization: `Bearer ${localStorage.getItem("token")}`,
+                },
+            });
 
             return res?.data?.data;
         } catch (error) {

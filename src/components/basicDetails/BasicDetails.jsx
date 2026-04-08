@@ -42,9 +42,7 @@ export default function BasicDetails({ modalOpen, setModalOpen, setStep, step, r
           dispatch(profileData())
           setModalOpen("");
           toast.success(basicRes?.message);
-          console.log(basicRes?.message, "message")
         }
-        console.log("basicRes", basicRes)
       } catch (err) {
         console.error("basicDetails failed:", err);
       }

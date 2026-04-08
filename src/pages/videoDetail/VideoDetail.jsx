@@ -1,17 +1,15 @@
 import {
-    Plus, Download, Share2, Heart,
-    X, RotateCcw, RotateCw, Play, Pause, Sun, Lock, Layers, MessageSquare, StepForward, Gauge,
-    ThumbsDown, ThumbsUp, Flag, Maximize, Minimize
+    Plus, Download, Share2, Heart
 } from "lucide-react";
-import Hls from "hls.js";
-import { useRef } from "react";
-import { useParams } from "react-router-dom";
+import { useParams, useSearchParams } from "react-router-dom";
 import { getVideoDetail } from "../../features/videoDetailSlice/videoDetailSlice";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { openDB } from "idb";
 import WatchList from "../../components/watchList/watchList";
 import { watchListModalOpen } from "../../features/watchlistSlice/watchlistSlice";
 import { useDispatch, useSelector } from "react-redux";
+import { addVideoToContinueWatching } from "../../features/continueWatchingSlice/continueWatchingSlice";
+import VideoPlayer from "../../components/videoPlayer/VideoPlayer";
 
 // -- IndexedDB: version 3 adds "keys" store for crypto key --
 const getDB = () =>
@@ -56,34 +54,24 @@ export default function VideoDetail() {
     const [offlineVideo, setOfflineVideo] = useState(null);
     const [isDownloading, setIsDownloading] = useState(false);
     const [isDownloaded, setIsDownloaded] = useState(false);
-    const [isPlaying, setIsPlaying] = useState(true);
-    const [currentTime, setCurrentTime] = useState(0);
-    const [duration, setDuration] = useState(0); const [showControls, setShowControls] = useState(true);
-    const [brightness, setBrightness] = useState(1);
-    const [isFullScreen, setIsFullScreen] = useState(false);
-
-    const controlsTimeout = useRef(null);
-
     const { id } = useParams();
-    const videoRef = useRef(null);
+    const [searchParams] = useSearchParams();
+    const startTimeParam = searchParams.get('t');
+    const startTime = startTimeParam && !isNaN(parseFloat(startTimeParam)) ? parseFloat(startTimeParam) : null;
+
+    // We only need to track the latest time for unmount progress saving
+    const lastTimeRef = useRef(startTime || 0);
+    const videoDurationRef = useRef(0);
 
     const dispatch = useDispatch();
 
     const { videoDetail } = useSelector((state) => state.videoDetail);
     const videoDetailData = videoDetail?.data;
 
-    const { watchListModalState } = useSelector((state) => state.watchlist);
+    const { watchListModalState, watchlist } = useSelector((state) => state.watchlist);
 
-    const { user } = useSelector((state) => state.auth);
+    const { user, token } = useSelector((state) => state.auth);
     const userId = user?.data?._id || user?.data?.userName;
-
-    useEffect(() => {
-        const handleFullscreenChange = () => {
-            setIsFullScreen(!!document.fullscreenElement);
-        };
-        document.addEventListener("fullscreenchange", handleFullscreenChange);
-        return () => document.removeEventListener("fullscreenchange", handleFullscreenChange);
-    }, []);
 
     useEffect(() => {
         dispatch(getVideoDetail(id));
@@ -150,57 +138,6 @@ export default function VideoDetail() {
         loadOfflineVideo();
     }, [id, dispatch, userId]);
 
-    useEffect(() => {
-        let hls;
-
-        const setupPlayer = () => {
-            if (offlineVideo) {
-                if (videoRef.current) {
-                    videoRef.current.src = offlineVideo;
-                    videoRef.current.play().catch(e => console.log("Auto-play prevented", e));
-                }
-                return;
-            }
-
-            if (!videoDetailData) return;
-
-            if (videoDetailData.trailerUrl) {
-                if (Hls.isSupported()) {
-                    hls = new Hls({
-                        enableWorker: true,
-                        lowLatencyMode: true,
-                    });
-
-                    hls.loadSource(videoDetailData.trailerUrl); // 🔥 .m3u8
-                    if (videoRef.current) hls.attachMedia(videoRef.current);
-
-                    hls.on(Hls.Events.MANIFEST_PARSED, () => {
-                        videoRef.current.muted = true;
-                        videoRef.current.play().catch(err => {
-                            console.log("Autoplay blocked:", err);
-                        });
-                    });
-                } else if (videoRef.current?.canPlayType("application/vnd.apple.mpegurl")) {
-                    videoRef.current.src = videoDetailData.trailerUrl;
-                    videoRef.current.play().catch(e => console.log("Auto-play prevented", e));
-                }
-            } else if (videoDetailData.trailerUrl_mp4) {
-                // Fallback to MP4 if HLS is not available
-                if (videoRef.current) {
-                    videoRef.current.src = videoDetailData.trailerUrl_mp4;
-                    videoRef.current.play().catch(e => console.log("Auto-play prevented", e));
-                }
-            }
-        };
-
-        setupPlayer();
-
-        return () => {
-            if (hls) hls.destroy();
-        };
-    }, [videoDetailData, offlineVideo]);
-
-
     const downloadVideo = async (url) => {
         if (!url || isDownloading || isDownloaded) return;
         if (!userId) {
@@ -218,7 +155,14 @@ export default function VideoDetail() {
             let start = 0;
 
             // check previous progress
-            const meta = (await db.get("videos", `${userId}_${id}_meta`)) || { downloaded: 0, total: 0 };
+            const meta = (await db.get("videos", `${userId}_${id}_meta`)) || {
+                downloaded: 0,
+                total: 0,
+                title: videoDetailData?.title,
+                thumbnail: videoDetailData?.thumbnail,
+                description: videoDetailData?.description,
+                videoId: id
+            };
             start = meta.downloaded || 0;
 
             let totalSize = 0;
@@ -230,6 +174,11 @@ export default function VideoDetail() {
                 console.warn("HEAD request failed, falling back to full download", err);
                 totalSize = 0;
             }
+
+            const updatedMeta = {
+                ...meta,
+                total: totalSize || meta.total
+            };
 
             if (totalSize > 0) {
                 while (start < totalSize) {
@@ -246,7 +195,7 @@ export default function VideoDetail() {
                         // Server does not support range requests
                         const encrypted = await encryptBlob(blob, key);
                         await db.put("videos", encrypted, `${userId}_${id}`);
-                        await db.put("videos", { downloaded: blob.size, total: blob.size }, `${userId}_${id}_meta`);
+                        await db.put("videos", { ...updatedMeta, downloaded: blob.size, total: blob.size }, `${userId}_${id}_meta`);
                         break;
                     }
 
@@ -255,7 +204,7 @@ export default function VideoDetail() {
                     await db.put("videos", encrypted, `${userId}_${id}_chunk_${start}`);
                     start += chunkSize;
 
-                    await db.put("videos", { downloaded: Math.min(start, totalSize), total: totalSize }, `${userId}_${id}_meta`);
+                    await db.put("videos", { ...updatedMeta, downloaded: Math.min(start, totalSize) }, `${userId}_${id}_meta`);
                 }
             } else {
                 // Fallback for missing Content-Length (fetch whole video)
@@ -266,12 +215,12 @@ export default function VideoDetail() {
                 const encrypted = await encryptBlob(blob, key);
 
                 await db.put("videos", encrypted, `${userId}_${id}`);
-                await db.put("videos", { downloaded: blob.size, total: blob.size }, `${userId}_${id}_meta`);
+                await db.put("videos", { ...updatedMeta, downloaded: blob.size, total: blob.size }, `${userId}_${id}_meta`);
             }
 
             setIsDownloaded(true);
-            alert("Download completed ✅");
-            window.location.reload(); // optionally reload to assemble chunks immediately
+            alert("Download completed \u2705");
+            window.location.reload();
 
         } catch (err) {
             console.error("Download failed:", err);
@@ -281,229 +230,61 @@ export default function VideoDetail() {
         }
     };
 
-    const handleMouseMove = () => {
-        setShowControls(true);
-        if (controlsTimeout.current) clearTimeout(controlsTimeout.current);
-        controlsTimeout.current = setTimeout(() => {
-            if (isPlaying) setShowControls(false);
-        }, 3000);
+    const handleContinueWatching = (time, duration) => {
+        if (!token || !id || isNaN(time) || isNaN(duration) || duration <= 0) return;
+
+        const progressPercent = Math.round((time / duration) * 100);
+
+        dispatch(addVideoToContinueWatching({
+            videoId: id,
+            watchDuration: Math.floor(time),
+            progress: progressPercent
+        }));
     };
 
-    const handleMouseLeave = () => {
-        if (isPlaying) setShowControls(false);
+    // Callback from VideoPlayer to sync time updates
+    const onTimeUpdate = (time, duration) => {
+        lastTimeRef.current = time;
+        videoDurationRef.current = duration;
     };
 
-    const toggleFullScreen = () => {
-        const videoContainer = document.getElementById("video-container");
-        if (!videoContainer) return;
+    // Debounce continue watching updates (every 10 seconds)
+    useEffect(() => {
+        if (!token) return;
 
-        if (!document.fullscreenElement) {
-            videoContainer.requestFullscreen().catch(err => {
-                alert(`Error attempting to enable full-screen mode: ${err.message}`);
-            });
-        } else {
-            document.exitFullscreen().catch(err => {
-                console.log(err);
-            });
-        }
-    };
+        const interval = setInterval(() => {
+            handleContinueWatching(lastTimeRef.current, videoDurationRef.current);
+        }, 10000); // 10 seconds
 
-    const togglePlay = () => {
-        if (videoRef.current) {
-            if (videoRef.current.paused) {
-                videoRef.current.play();
-                setIsPlaying(true);
-            } else {
-                videoRef.current.pause();
-                setIsPlaying(false);
+        return () => {
+            clearInterval(interval);
+            // Save final position on unmount
+            if (lastTimeRef.current > 0) {
+                handleContinueWatching(lastTimeRef.current, videoDurationRef.current);
             }
-        }
-    };
-
-    const handleTimelineClick = (e) => {
-        if (!videoRef.current) return;
-        const rect = e.currentTarget.getBoundingClientRect();
-        const percent = Math.min(Math.max((e.clientX - rect.left) / rect.width, 0), 1);
-        videoRef.current.currentTime = percent * duration;
-    };
-
-    const formatTime = (timeInSeconds) => {
-        if (!timeInSeconds || isNaN(timeInSeconds)) return "00:00";
-        const minutes = Math.floor(timeInSeconds / 60);
-        const seconds = Math.floor(timeInSeconds % 60);
-        return `${minutes.toString().padStart(2, "0")}:${seconds.toString().padStart(2, "0")}`;
-    };
+        };
+    }, [id, token]);
 
     return (
         <>
             <div className="min-h-screen bg-[#020b1c] text-white flex flex-col">
                 <div className="view">
                     <div className="flex flex-wrap justify-between w-full">
-                        <div
-                            id="video-container"
-                            className="relative w-full aspect-video md:h-[70vh] bg-black group overflow-hidden select-none"
-                            onMouseMove={handleMouseMove}
-                            onMouseLeave={handleMouseLeave}
-                            onClick={handleMouseMove}
-                        >
-                            {/* VIDEO */}
-                            <video
-                                ref={videoRef}
-                                autoPlay
-                                playsInline
-                                onClick={togglePlay}
-                                onTimeUpdate={() => setCurrentTime(videoRef.current?.currentTime || 0)}
-                                onLoadedMetadata={() => setDuration(videoRef.current?.duration || 0)}
-                                onPlay={() => setIsPlaying(true)}
-                                onPause={() => setIsPlaying(false)}
-                                className="w-full h-full object-contain"
-                                style={{ filter: `brightness(${brightness})` }}
-                                disablePictureInPicture
-                                onContextMenu={(e) => e.preventDefault()}
-                            />
 
-                            {/* OVERLAY CONTROLS */}
-                            <div
-                                className={`absolute inset-0 bg-black/50 transition-opacity duration-300 flex flex-col justify-between p-4 md:p-8 ${showControls || !isPlaying ? "opacity-100" : "opacity-0 pointer-events-none"}`}
-                            >
-                                {/* TOP BAR */}
-                                <div className="flex justify-between items-start text-white w-full z-10 pt-2 lg:px-4">
-                                    <div className="flex gap-3 md:gap-4 items-center">
-                                        <div className="size-12 rounded-full bg-gradient-to-r from-blue-500 to-purple-500 flex items-center justify-center"><span className="text-white font-bold text-lg">S</span></div>
-                                        <div className="flex flex-col">
-                                            <span className="font-bold text-base md:text-lg tracking-wide shadow-sm">
-                                                1. {videoDetailData?.title || 'Name of Episode'}
-                                            </span>
-                                            <span className="text-xs text-gray-300 font-medium tracking-wide">1h 21m</span>
-                                        </div>
-                                    </div>
-                                    <div className="flex items-center gap-4 md:gap-6">
-                                        <div className="hidden sm:flex gap-4 bg-[#2b2b2b]/60 px-4 py-2 rounded-full backdrop-blur-md">
-                                            <button className="hover:text-gray-300 transition cursor-pointer"><ThumbsDown size={22} /></button>
-                                            <button className="hover:text-gray-300 transition cursor-pointer"><ThumbsUp size={22} /></button>
-
-                                        </div>
-                                        <button className="hover:text-gray-300 transition cursor-pointer drop-shadow-md"><Flag size={26} /></button>
-                                        <button
-                                            className="hover:text-gray-300 transition cursor-pointer drop-shadow-md"
-                                            onClick={() => {
-                                                if (document.fullscreenElement) document.exitFullscreen().catch(() => { });
-                                                window.history.back();
-                                            }}
-                                        >
-                                            <X size={32} />
-                                        </button>
-                                    </div>
-                                </div>
-
-                                {/* MIDDLE CONTROLS */}
-                                <div className="flex justify-center items-center gap-20 md:gap-40 relative flex-1">
-                                    {/* BRIGHTNESS SLIDER */}
-                                    <div className="absolute left-2 sm:left-6 hidden md:flex flex-col items-center gap-4 h-40">
-                                        <Sun size={26} className="text-white z-10 drop-shadow-md" />
-                                        <div className="h-full relative flex justify-center w-6">
-                                            <input
-                                                type="range" min="0.2" max="2" step="0.1" value={brightness}
-                                                onChange={(e) => setBrightness(e.target.value)}
-                                                className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-32 h-1.5 bg-white/30 appearance-none cursor-pointer outline-none -rotate-90 z-10 overflow-hidden rounded-full"
-                                            />
-                                        </div>
-                                    </div>
-
-                                    <button
-                                        onClick={(e) => { e.stopPropagation(); if (videoRef.current) videoRef.current.currentTime -= 10; }}
-                                        className="text-white hover:text-gray-300 transition flex flex-col items-center z-10 cursor-pointer drop-shadow-lg"
-                                    >
-                                        <div className="relative flex items-center justify-center">
-                                            <RotateCcw size={52} className="font-light" strokeWidth={1.5} />
-                                            <span className="absolute text-[12px] font-bold mt-1">10</span>
-                                        </div>
-                                    </button>
-
-                                    <button
-                                        onClick={(e) => { e.stopPropagation(); togglePlay(); }}
-                                        className="text-white hover:scale-110 transition z-10 cursor-pointer drop-shadow-lg"
-                                    >
-                                        {isPlaying ?
-                                            <Pause size={72} fill="white" strokeWidth={0} /> :
-                                            <Play size={72} fill="white" strokeWidth={0} />
-                                        }
-                                    </button>
-
-                                    <button
-                                        onClick={(e) => { e.stopPropagation(); if (videoRef.current) videoRef.current.currentTime += 10; }}
-                                        className="text-white hover:text-gray-300 transition flex flex-col items-center z-10 cursor-pointer drop-shadow-lg"
-                                    >
-                                        <div className="relative flex items-center justify-center">
-                                            <RotateCw size={52} className="font-light" strokeWidth={1.5} />
-                                            <span className="absolute text-[12px] font-bold mt-1">10</span>
-                                        </div>
-                                    </button>
-                                </div>
-
-                                {/* BOTTOM BAR */}
-                                <div className="flex flex-col gap-6 w-full pb-2">
-                                    {/* TIMELINE */}
-                                    <div className="flex items-center gap-4 text-white text-sm font-medium w-full z-10 px-2 lg:px-8">
-                                        <div
-                                            className="flex-1 h-1 md:h-1.5 bg-gray-500/50 cursor-pointer relative group/timeline flex items-center rounded-full"
-                                            onClick={handleTimelineClick}
-                                        >
-                                            <div
-                                                className="absolute left-0 h-full bg-[#E50914] rounded-full delay-75"
-                                                style={{ width: `${duration ? (currentTime / duration) * 100 : 0}%` }}
-                                            >
-                                                <div className="absolute right-0 top-1/2 -translate-y-1/2 w-5 h-5 md:w-6 md:h-6 bg-[#E50914] rounded-full translate-x-1/2 shadow-[0_0_10px_rgba(229,9,20,0.8)]"></div>
-                                            </div>
-                                        </div>
-                                        <span className="w-16 text-right font-medium tracking-wider">{formatTime(duration - currentTime)}</span>
-                                    </div>
-
-                                    {/* BOTTOM BUTTONS */}
-                                    <div className="flex justify-between items-center text-white text-sm w-full overflow-x-auto gap-6 scrollbar-hide z-10 px-2 lg:px-8">
-                                        <div className="flex gap-6 md:gap-8 min-w-max">
-                                            <button className="flex items-center gap-2 hover:text-gray-300 transition cursor-pointer font-medium tracking-wide text-gray-200">
-                                                <Gauge size={22} className="opacity-90" />
-                                                <span className="hidden sm:inline">Speed (1x)</span>
-                                                <span className="sm:hidden">1x</span>
-                                            </button>
-                                            <button className="flex items-center gap-2 hover:text-gray-300 transition cursor-pointer font-medium tracking-wide text-gray-200">
-                                                <Lock size={22} className="opacity-90" />
-                                                <span className="hidden sm:inline">Lock</span>
-                                            </button>
-                                        </div>
-                                        <div className="flex gap-6 md:gap-8 min-w-max items-center">
-                                            <button className="flex items-center gap-2 hover:text-gray-300 transition cursor-pointer font-medium tracking-wide text-gray-200">
-                                                <Layers size={22} className="opacity-90" />
-                                                <span className="hidden sm:inline">Episodes</span>
-                                            </button>
-                                            <button className="flex items-center gap-2 hover:text-gray-300 transition cursor-pointer font-medium tracking-wide text-gray-200">
-                                                <MessageSquare size={22} className="opacity-90" />
-                                                <span className="hidden sm:inline">Audio & Subtitles</span>
-                                            </button>
-                                            <button className="flex items-center gap-2 hover:text-gray-300 transition cursor-pointer font-medium tracking-wide text-gray-200">
-                                                <StepForward size={22} className="opacity-90" />
-                                                <span className="hidden sm:inline">Next Ep.</span>
-                                            </button>
-                                            <button
-                                                onClick={(e) => { e.stopPropagation(); toggleFullScreen(); }}
-                                                className="flex items-center gap-2 hover:text-gray-300 transition cursor-pointer font-medium tracking-wide ml-2 md:ml-4 text-white"
-                                                title="Fullscreen"
-                                            >
-                                                {isFullScreen ? <Minimize size={26} className="opacity-100" /> : <Maximize size={26} className="opacity-100" />}
-                                            </button>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
+                        {/* Replaced legacy video element with modular VideoPlayer component */}
+                        <VideoPlayer
+                            videoData={videoDetailData}
+                            offlineVideo={offlineVideo}
+                            startTime={startTime}
+                            onTimeUpdate={onTimeUpdate}
+                        />
 
                         <div className="w-full md:pt-12">
                             <div className="w-full flex flex-col gap-y-8">
                                 <div className="flex flex-col gap-y-2">
                                     <h2 className="md:text-3xl text-xl font-semibold">{videoDetailData?.title}</h2>
                                     <p className="text-gray-400 text-sm">
-                                        {new Date(videoDetailData?.releaseDate).getFullYear()} | {videoDetailData?.language} | {videoDetailData?.category?.name}
+                                        {videoDetailData?.releaseDate ? new Date(videoDetailData.releaseDate).toLocaleDateString() : ""} | {videoDetailData?.language} | {videoDetailData?.category?.name}
                                     </p>
                                 </div>
                                 <div className="w-full flex gap-6">
@@ -511,7 +292,7 @@ export default function VideoDetail() {
                                         <div className="w-14 h-14 rounded-full bg-gray-800 flex items-center justify-center">
                                             <Plus />
                                         </div>
-                                        <span className="text-sm text-gray-400">Watchlist</span>
+                                        <span className="text-sm text-gray-400">{watchlist?.loading ? "Loading..." : "Watchlist"}</span>
                                     </button>
                                     <button
                                         type="button"
@@ -527,7 +308,7 @@ export default function VideoDetail() {
                                             <Download className={isDownloading ? "animate-bounce" : ""} />
                                         </div>
                                         <span className="text-sm text-gray-400">
-                                            {isDownloading ? "Saving..." : isDownloaded ? "Saved ✅" : "Download"}
+                                            {isDownloading ? "Saving..." : isDownloaded ? "Saved \u2705" : "Download"}
                                         </span>
                                     </button>
                                     <button type="button" className="cursor-pointer flex flex-col items-center gap-2">

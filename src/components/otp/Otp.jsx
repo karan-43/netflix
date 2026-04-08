@@ -58,7 +58,6 @@ export default function Otp({ modalOpen, setModalOpen, mobile, setStep, step }) 
             })).unwrap();
 
             if (res) {
-                console.log(res, "otp verification success");
                 dispatch(setToken(res.data.token));
                 localStorage.setItem("token", res.data.token);
                 setStep(3);

@@ -6,7 +6,11 @@ export const getVideoDetail = createAsyncThunk(
     "videoDetail/getVideoDetail",
     async (id, { rejectWithValue }) => {
         try {
-            const res = await axios.get(`${BASE_URL}${API_ROUTES.videoDetail}/${id}`);
+            const res = await axios.get(`${BASE_URL}${API_ROUTES.videoDetail}/${id}`, {
+                headers: {
+                    Authorization: `Bearer ${localStorage.getItem("token")}`,
+                },
+            });
             return res?.data?.data;
         } catch (error) {
             return rejectWithValue(error.response?.data || error);

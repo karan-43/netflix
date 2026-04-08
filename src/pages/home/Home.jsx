@@ -8,6 +8,7 @@ import VideoCard from '../../components/videoCard/VideoCard'
 
 const Home = () => {
     const dispatch = useDispatch();
+
     useEffect(() => {
         dispatch(getVideo());
     }, [])

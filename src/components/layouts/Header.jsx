@@ -1,4 +1,4 @@
-import { Bell, Search, User } from "lucide-react";
+import { Bell, Heart, Search, User } from "lucide-react";
 import { useEffect, useState } from "react";
 import Register from "../register/Register";
 import { useDispatch, useSelector } from "react-redux";
@@ -6,15 +6,16 @@ import { profileData } from "../../features/authSlice/authSlice";
 import Login from "../login/Login";
 import { removeToken } from "../../features/authSlice/authSlice";
 import { clearWatchlist } from "../../features/watchlistSlice/watchlistSlice";
+import { Link, useNavigate } from "react-router-dom";
 
 const Header = () => {
     const dispatch = useDispatch();
+    const navigate = useNavigate();
     const { token, user, loading } = useSelector((state) => state.auth);
     const [modalOpen, setModalOpen] = useState("");
     const [isDropdownOpen, setIsDropdownOpen] = useState(false);
     const { watchlist } = useSelector((state) => state.watchlist);
 
-    console.log(watchlist, "watchlist header")
     console.log(token, user, "Dgdfgdfgdfg")
     useEffect(() => {
         if (token && user?.data && !user?.data?.userName) {
@@ -90,7 +91,10 @@ const Header = () => {
                                         ) : (
                                             <div className="py-1">
                                                 <button
-
+                                                    onClick={() => {
+                                                        navigate("/profile");
+                                                        setIsDropdownOpen(false);
+                                                    }}
                                                     className="w-full text-left px-4 py-2 text-white hover:bg-gray-800 transition text-sm font-medium"
                                                 >
                                                     Profile
@@ -120,6 +124,9 @@ const Header = () => {
                             {/* Red Dot */}
                             <span className="absolute top-1 right-1 w-2.5 h-2.5 bg-red-500 rounded-full"></span>
                         </div>
+                        <Link to="/favourites" className="relative w-10 h-10 rounded-xl border border-gray-600 flex items-center justify-center cursor-pointer hover:bg-gray-800 transition">
+                            <Heart className="text-white w-5 h-5" />
+                        </Link>
 
                     </div>
                 </div>
@@ -127,7 +134,8 @@ const Header = () => {
 
             {modalOpen === "step1" && <Register setModalOpen={setModalOpen} modalOpen={modalOpen} />
             }
-            {modalOpen === "login" && <Login setModalOpen={setModalOpen} modalOpen={modalOpen} />
+            {
+                modalOpen === "login" && <Login setModalOpen={setModalOpen} modalOpen={modalOpen} />
             }
         </>
     )

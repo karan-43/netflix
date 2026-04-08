@@ -1,4 +1,4 @@
-export const BASE_URL = "https://138.68.68.183:4001/api/v1";
+export const BASE_URL = "http://138.68.68.183:4001/api/v1";
 
 export const API_ROUTES = {
     register: "/user/register",
@@ -10,5 +10,9 @@ export const API_ROUTES = {
     login: "/user/login",
     watchlist: "/watchlist",
     addVideoWatchlist: "/watchlist/add-video",
-    removeVideoWatchlist: "/watchlist/remove-video"
+    removeVideoWatchlist: "/watchlist/remove-video",
+    continueWatching: "/watch-history/add",
+    getFavouriteVideo: "/favourite",
+    addFavouriteVideo: "/favourite/add-video",
+    removeFavouriteVideo: "/favourite/remove-video",
 };

@@ -16,7 +16,6 @@ export const getWatchList = createAsyncThunk(
                     "Authorization": `Bearer ${localStorage.getItem("token")}`
                 },
             });
-            console.log(res?.data, "WATCHLIST")
             return res?.data?.data;
         }
         catch (error) {
@@ -37,7 +36,6 @@ export const addWatchListUser = createAsyncThunk(
                     "Authorization": `Bearer ${localStorage.getItem("token")}`
                 },
             });
-            console.log(res?.data, "WATCHLIST")
             return res?.data?.data;
         }
         catch (error) {
@@ -77,7 +75,6 @@ export const addVideoWatchList = createAsyncThunk(
                     "Authorization": `Bearer ${localStorage.getItem("token")}`
                 },
             });
-            console.log(res?.data, "WATCHLIST")
             return res?.data?.data;
         }
         catch (error) {
@@ -97,7 +94,6 @@ export const removeVideoWatchList = createAsyncThunk(
                     "Authorization": `Bearer ${localStorage.getItem("token")}`
                 },
             });
-            console.log(res?.data, "WATCHLIST")
             return res?.data?.data;
         }
         catch (error) {
@@ -110,6 +106,11 @@ const watchlistSlice = createSlice({
     name: "watchlist",
     initialState: {
         watchlist: {
+            loading: false,
+            error: null,
+            data: []
+        },
+        addWatchListUserData: {
             loading: false,
             error: null,
             data: []
@@ -146,6 +147,21 @@ const watchlistSlice = createSlice({
         builder.addCase(getWatchList.rejected, (state, action) => {
             state.watchlist.loading = false;
             state.watchlist.error = action.payload;
+        })
+
+        builder.addCase(addWatchListUser.pending, (state) => {
+            state.addWatchListUserData.loading = true;
+            state.addWatchListUserData.error = null;
+        })
+        builder.addCase(addWatchListUser.fulfilled, (state, action) => {
+            state.addWatchListUserData.loading = false;
+            state.addWatchListUserData.error = null;
+            state.addWatchListUserData.data = action.payload;
+
+        })
+        builder.addCase(addWatchListUser.rejected, (state, action) => {
+            state.addWatchListUserData.loading = false;
+            state.addWatchListUserData.error = action.payload;
         })
 
         builder.addCase(addVideoWatchList.pending, (state) => {

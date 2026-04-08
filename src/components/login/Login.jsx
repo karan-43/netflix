@@ -42,7 +42,6 @@ export default function Login({ setModalOpen, modalOpen }) {
     },
   });
 
-  console.log(modalOpen, 'isRegisterisRegisterisRegister')
 
   if (modalOpen === "step1") {
     return <Register />
